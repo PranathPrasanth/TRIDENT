@@ -80,5 +80,3 @@ TRIDENT/
 TRIDENT explores the application of Artificial Intelligence, Signal Processing, and Explainable Machine Learning for next-generation underwater acoustic intelligence systems capable of target recognition, anomaly detection, and autonomous situational awareness.
 
 ---
-
-### Turning underwater acoustic signals into actionable intelligence.
