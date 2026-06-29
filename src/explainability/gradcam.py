@@ -25,16 +25,45 @@ class GradCAM:
 
     # ---------------------------------------------------------
 
+    def _find_last_conv_layer(
+        self,
+    ) -> str:
+        """
+        Find the last Conv2D layer automatically.
+        """
+
+        for layer in reversed(
+            self.model.layers
+        ):
+
+            if isinstance(
+                layer,
+                tf.keras.layers.Conv2D,
+            ):
+
+                return layer.name
+
+        raise ValueError(
+            "No Conv2D layer found in the model."
+        )
+
+    # ---------------------------------------------------------
+
     def generate(
         self,
         image: np.ndarray,
-        last_conv_layer_name: str,
     ) -> np.ndarray:
         """
         Generate a Grad-CAM heatmap.
         """
 
-        logger.info("Generating Grad-CAM heatmap...")
+        logger.info(
+            "Generating Grad-CAM heatmap..."
+        )
+
+        last_conv_layer_name = (
+            self._find_last_conv_layer()
+        )
 
         grad_model = tf.keras.models.Model(
 
@@ -59,7 +88,8 @@ class GradCAM:
             )
 
             predicted_class = tf.argmax(
-                predictions[0]
+                predictions[0],
+                output_type=tf.int32,
             )
 
             loss = predictions[
@@ -80,7 +110,10 @@ class GradCAM:
 
         )
 
-        conv_outputs = conv_outputs[0]
+        conv_outputs = tf.squeeze(
+            conv_outputs,
+            axis=0,
+        )
 
         heatmap = tf.reduce_sum(
 
@@ -95,21 +128,13 @@ class GradCAM:
             0,
         )
 
-        heatmap /= tf.reduce_max(
-            heatmap
-        ) + 1e-10
+        heatmap /= (
+            tf.reduce_max(heatmap)
+            + 1e-10
+        )
 
         logger.info(
             "Grad-CAM completed."
         )
 
         return heatmap.numpy()
-
-
-# -------------------------------------------------------------
-# Testing
-# -------------------------------------------------------------
-
-if __name__ == "__main__":
-
-    print("GradCAM module loaded successfully.")

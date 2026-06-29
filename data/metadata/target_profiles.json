@@ -1,50 +1,43 @@
 {
     "submarine": {
+        "category": "Military",
         "threat_level": "HIGH",
-        "priority": 1,
-        "recommended_action": "Immediate monitoring",
-        "description": "Potential military underwater target."
+        "recommended_action": "Immediate monitoring"
     },
 
     "torpedo": {
+        "category": "Weapon",
         "threat_level": "CRITICAL",
-        "priority": 0,
-        "recommended_action": "Immediate defensive response",
-        "description": "High-speed underwater weapon."
+        "recommended_action": "Immediate defensive response"
     },
 
     "ship": {
+        "category": "Surface Vessel",
         "threat_level": "MEDIUM",
-        "priority": 3,
-        "recommended_action": "Continue tracking",
-        "description": "Surface vessel detected."
+        "recommended_action": "Continue tracking"
     },
 
     "whale": {
+        "category": "Marine Life",
         "threat_level": "LOW",
-        "priority": 5,
-        "recommended_action": "No action required",
-        "description": "Marine life detected."
+        "recommended_action": "No action required"
     },
 
     "dolphin": {
+        "category": "Marine Life",
         "threat_level": "LOW",
-        "priority": 5,
-        "recommended_action": "No action required",
-        "description": "Marine life detected."
+        "recommended_action": "No action required"
     },
 
     "ambient_noise": {
+        "category": "Environment",
         "threat_level": "NONE",
-        "priority": 10,
-        "recommended_action": "Ignore",
-        "description": "Background ocean noise."
+        "recommended_action": "Ignore"
     },
 
     "default": {
+        "category": "Unknown",
         "threat_level": "UNKNOWN",
-        "priority": 99,
-        "recommended_action": "Manual inspection required",
-        "description": "No threat profile available."
+        "recommended_action": "Manual inspection required"
     }
 }

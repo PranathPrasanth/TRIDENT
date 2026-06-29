@@ -1,20 +1,32 @@
 """
 TRIDENT Threat Analyzer
 
-Converts CNN predictions into
-actionable threat intelligence.
+Converts predictions into threat intelligence.
 """
 
-from threat_engine.rules import THREAT_RULES
+import json
 
+from utils.config import METADATA_DIR
 from utils.logger import logger
 
 
 class ThreatAnalyzer:
     """
-    Assigns threat levels based on
-    prediction results.
+    Analyzes predicted targets and
+    returns threat information.
     """
+
+    def __init__(self) -> None:
+
+        with open(
+            METADATA_DIR / "target_profiles.json",
+            "r",
+            encoding="utf-8",
+        ) as file:
+
+            self.target_profiles = json.load(file)
+
+    # ---------------------------------------------------------
 
     def analyze(
         self,
@@ -23,34 +35,30 @@ class ThreatAnalyzer:
     ) -> dict:
 
         logger.info(
-            "Analyzing threat..."
+            "Analyzing prediction..."
         )
 
-        info = THREAT_RULES.get(
+        profile = self.target_profiles.get(
 
             prediction.lower(),
 
-            THREAT_RULES["unknown"],
+            self.target_profiles["default"],
 
         )
 
-        result = {
+        return {
 
             "target": prediction,
 
             "confidence": confidence,
 
-            "threat_level": info["level"],
+            "category": profile["category"],
 
-            "recommended_action": info["action"],
+            "threat_level": profile["threat_level"],
+
+            "recommended_action": profile["recommended_action"],
 
         }
-
-        logger.info(
-            "Threat analysis completed."
-        )
-
-        return result
 
 
 # -------------------------------------------------------------
@@ -62,17 +70,8 @@ if __name__ == "__main__":
     analyzer = ThreatAnalyzer()
 
     result = analyzer.analyze(
-
-        "Submarine",
-
-        0.96,
-
+        "submarine",
+        0.97,
     )
 
-    print()
-
-    print("========== THREAT REPORT ==========")
-
-    for key, value in result.items():
-
-        print(f"{key} : {value}")
+    print(result)
