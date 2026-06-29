@@ -20,7 +20,7 @@ from feature_extraction.normalizer import (
 
 from pathlib import Path
 import random
-from typing import Dict, List
+from typing import Dict
 
 from sklearn.model_selection import train_test_split
 
@@ -42,7 +42,7 @@ class DatasetBuilder:
     Creates train, validation and test datasets.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
 
         self.loader = AudioLoader()
 
@@ -95,8 +95,8 @@ class DatasetBuilder:
 
     def encode_labels(
         self,
-        dataset: Dict[str, List[Path]]
-    ) -> Dict[str, int]:
+        dataset: dict[str, list[Path]]
+    ) -> dict[str, int]:
 
         classes = sorted(dataset.keys())
 
@@ -110,9 +110,9 @@ class DatasetBuilder:
     def save_metadata(
         self,
         label_encoder: Dict[str, int],
-        X_train,
-        X_val,
-        X_test,
+        X_train: np.ndarray,
+        X_val: np.ndarray,
+        X_test: np.ndarray,
     ) -> None:
         """
         Save dataset metadata.
@@ -170,7 +170,17 @@ class DatasetBuilder:
 
     # ---------------------------------------------------
 
-    def build(self):
+    def build(
+        self,
+    ) -> tuple[
+        np.ndarray, 
+        np.ndarray, 
+        np.ndarray, 
+        np.ndarray, 
+        np.ndarray, 
+        np.ndarray, 
+        dict[str, int]
+    ]:
 
         logger.info("Scanning dataset...")
 
@@ -178,9 +188,9 @@ class DatasetBuilder:
 
         label_encoder = self.encode_labels(dataset)
 
-        X = []
+        X: list[np.ndarray] = []
 
-        y = []
+        y: list[int] = []
 
         for label, wav_files in dataset.items():
 
