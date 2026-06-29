@@ -5,16 +5,12 @@ Converts underwater acoustic recordings into
 Mel Spectrograms for deep learning.
 """
 
-from pathlib import Path
-
 import librosa
-import librosa.display
-import matplotlib.pyplot as plt
 import numpy as np
 
 from utils.config import SAMPLE_RATE
 from utils.logger import logger
-
+from utils.helpers import save_numpy
 
 class MelSpectrogramExtractor:
     """
@@ -67,68 +63,6 @@ class MelSpectrogramExtractor:
 
         return mel_db
 
-    # ---------------------------------------------------------
-
-    def save_numpy(
-        self,
-        mel: np.ndarray,
-        output_path: str | Path,
-    ) -> None:
-
-        output_path = Path(output_path)
-
-        output_path.parent.mkdir(
-            parents=True,
-            exist_ok=True,
-        )
-
-        np.save(output_path, mel)
-
-        logger.info(
-            f"Saved NumPy feature -> {output_path}"
-        )
-
-    # ---------------------------------------------------------
-
-    def save_image(
-        self,
-        mel: np.ndarray,
-        output_path: str | Path,
-    ) -> None:
-
-        output_path = Path(output_path)
-
-        output_path.parent.mkdir(
-            parents=True,
-            exist_ok=True,
-        )
-
-        plt.figure(figsize=(10, 4))
-
-        librosa.display.specshow(
-            mel,
-            sr=self.sample_rate,
-            hop_length=self.hop_length,
-            x_axis="time",
-            y_axis="mel",
-        )
-
-        plt.colorbar(
-            format="%+2.0f dB"
-        )
-
-        plt.title("Mel Spectrogram")
-
-        plt.tight_layout()
-
-        plt.savefig(output_path)
-
-        plt.close()
-
-        logger.info(
-            f"Saved spectrogram image -> {output_path}"
-        )
-
 
 # -------------------------------------------------------------
 # Testing
@@ -157,18 +91,19 @@ if __name__ == "__main__":
         waveform
     )
 
-    extractor.save_numpy(
+    save_numpy(
         mel,
         "data/features/example.npy",
     )
 
-    extractor.save_image(
-        mel,
-        "data/spectrograms/example.png",
-    )
-
     print()
 
-    print("Shape")
+    print("========== MEL SPECTROGRAM ==========")
 
-    print(mel.shape)
+    print(f"Shape : {mel.shape}")
+
+    print(f"Data Type : {mel.dtype}")
+
+    print(f"Minimum Value : {mel.min():.2f}")
+
+    print(f"Maximum Value : {mel.max():.2f}")
