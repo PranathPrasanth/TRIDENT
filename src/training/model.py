@@ -8,18 +8,17 @@ underwater acoustic target classification.
 import tensorflow as tf
 
 from utils.logger import logger
-
+from utils.config import INPUT_SHAPE
 
 class TRIDENTModel:
     """
     CNN model for underwater acoustic classification.
     """
-
     def __init__(
-        self,
-        input_shape=(128, 128, 1),
-        num_classes=4,
-    ) -> None:
+    self,
+    input_shape=INPUT_SHAPE,
+    num_classes=4,
+    )-> None:
 
         self.input_shape = input_shape
         self.num_classes = num_classes

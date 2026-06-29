@@ -9,18 +9,18 @@ import tensorflow as tf
 import numpy as np
 
 from utils.logger import logger
-
+from utils.config import BATCH_SIZE
 
 class DatasetManager:
     """
     Converts NumPy arrays into TensorFlow datasets.
     """
-
+    
     def __init__(
-        self,
-        batch_size: int = 32,
-        shuffle_buffer: int = 1000,
-    ) -> None:
+    self,
+    batch_size: int = BATCH_SIZE,
+    shuffle_buffer: int = 1000,
+    )-> None:
 
         self.batch_size = batch_size
         self.shuffle_buffer = shuffle_buffer
