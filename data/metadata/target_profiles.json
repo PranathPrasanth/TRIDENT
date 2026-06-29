@@ -1,0 +1,50 @@
+{
+    "submarine": {
+        "threat_level": "HIGH",
+        "priority": 1,
+        "recommended_action": "Immediate monitoring",
+        "description": "Potential military underwater target."
+    },
+
+    "torpedo": {
+        "threat_level": "CRITICAL",
+        "priority": 0,
+        "recommended_action": "Immediate defensive response",
+        "description": "High-speed underwater weapon."
+    },
+
+    "ship": {
+        "threat_level": "MEDIUM",
+        "priority": 3,
+        "recommended_action": "Continue tracking",
+        "description": "Surface vessel detected."
+    },
+
+    "whale": {
+        "threat_level": "LOW",
+        "priority": 5,
+        "recommended_action": "No action required",
+        "description": "Marine life detected."
+    },
+
+    "dolphin": {
+        "threat_level": "LOW",
+        "priority": 5,
+        "recommended_action": "No action required",
+        "description": "Marine life detected."
+    },
+
+    "ambient_noise": {
+        "threat_level": "NONE",
+        "priority": 10,
+        "recommended_action": "Ignore",
+        "description": "Background ocean noise."
+    },
+
+    "default": {
+        "threat_level": "UNKNOWN",
+        "priority": 99,
+        "recommended_action": "Manual inspection required",
+        "description": "No threat profile available."
+    }
+}

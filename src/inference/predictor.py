@@ -4,6 +4,7 @@ TRIDENT Predictor
 Performs inference using a trained CNN model.
 """
 
+import json
 from pathlib import Path
 
 import numpy as np
@@ -14,7 +15,10 @@ from preprocessing.audio_cleaner import AudioCleaner
 from feature_extraction.mel_spectrogram import MelSpectrogramExtractor
 from feature_extraction.normalizer import FeatureNormalizer
 
-from utils.config import MODEL_DIR
+from utils.config import (
+    MODEL_DIR,
+    METADATA_DIR,
+)
 from utils.logger import logger
 
 
@@ -42,6 +46,14 @@ class Predictor:
 
         self.normalizer = FeatureNormalizer()
 
+        with open(
+            METADATA_DIR / "class_mapping.json",
+            "r",
+            encoding="utf-8",
+        ) as file:
+
+            self.class_mapping = json.load(file)
+
         logger.info("Predictor ready.")
 
     # ---------------------------------------------------------
@@ -49,7 +61,6 @@ class Predictor:
     def predict(
         self,
         audio_path: str | Path,
-        class_names: list[str],
     ) -> tuple[str, float]:
         """
         Predict the class of an audio recording.
@@ -86,18 +97,24 @@ class Predictor:
             verbose=0,
         )
 
-        class_index = np.argmax(
-            prediction
+        class_index = int(
+            np.argmax(prediction)
         )
 
         confidence = float(
             prediction[0][class_index]
         )
 
-        logger.info("Prediction completed.")
+        predicted_class = self.class_mapping[
+            str(class_index)
+        ]
+
+        logger.info(
+            "Prediction completed."
+        )
 
         return (
-            class_names[class_index],
+            predicted_class,
             confidence,
         )
 
@@ -110,22 +127,14 @@ if __name__ == "__main__":
 
     predictor = Predictor()
 
-    classes = [
-        "Submarine",
-        "Ship",
-        "Torpedo",
-        "Background",
-    ]
-
     prediction, confidence = predictor.predict(
-        "data/raw/example.wav",
-        classes,
+        "data/raw/example.wav"
     )
 
     print()
 
     print("========== PREDICTION ==========")
 
-    print(f"Class      : {prediction}")
+    print(f"Target      : {prediction}")
 
-    print(f"Confidence : {confidence:.2%}")
+    print(f"Confidence  : {confidence:.2%}")

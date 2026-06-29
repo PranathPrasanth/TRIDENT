@@ -8,7 +8,8 @@ underwater acoustic target classification.
 import tensorflow as tf
 
 from utils.logger import logger
-from utils.config import INPUT_SHAPE
+from utils.config import INPUT_SHAPE, LEARNING_RATE
+
 
 class TRIDENTModel:
     """
@@ -16,12 +17,17 @@ class TRIDENTModel:
     """
     def __init__(
     self,
-    input_shape=INPUT_SHAPE,
-    num_classes=4,
+    num_classes: int,
+    input_shape: tuple[int, int, int] = INPUT_SHAPE,
     )-> None:
 
         self.input_shape = input_shape
         self.num_classes = num_classes
+
+        if self.num_classes < 2:
+            raise ValueError(
+                "num_classes must be at least 2."
+            )
 
     # ---------------------------------------------------------
 
@@ -103,7 +109,9 @@ class TRIDENTModel:
 
         model.compile(
 
-            optimizer="adam",
+            optimizer=tf.keras.optimizers.Adam(
+                learning_rate=LEARNING_RATE
+            ),
 
             loss="sparse_categorical_crossentropy",
 
@@ -122,7 +130,7 @@ class TRIDENTModel:
 
 if __name__ == "__main__":
 
-    cnn = TRIDENTModel()
+    cnn = TRIDENTModel(num_classes=4)
 
     model = cnn.build()
 

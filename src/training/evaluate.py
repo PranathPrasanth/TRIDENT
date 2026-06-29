@@ -91,6 +91,7 @@ class ModelEvaluator:
                 y_true,
                 y_pred,
                 zero_division=0,
+                target_names=class_names,
             ),
 
         }

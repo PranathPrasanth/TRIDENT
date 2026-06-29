@@ -1,0 +1,15 @@
+{
+    "num_classes":9,
+
+    "sample_rate":16000,
+
+    "n_mels":128,
+
+    "n_mfcc":20,
+
+    "train_samples":14321,
+
+    "validation_samples":3070,
+
+    "test_samples":3070
+}

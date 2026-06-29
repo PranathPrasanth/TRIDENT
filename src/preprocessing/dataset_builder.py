@@ -4,12 +4,16 @@ TRIDENT Dataset Builder
 Builds machine learning datasets from underwater
 acoustic recordings.
 """
+import json
+
+from utils.config import (
+    METADATA_DIR,
+)
 
 from pathlib import Path
 import random
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
-import numpy as np
 from sklearn.model_selection import train_test_split
 
 from preprocessing.audio_loader import AudioLoader
@@ -88,6 +92,69 @@ class DatasetBuilder:
             label: index
             for index, label in enumerate(classes)
         }
+    
+    # ---------------------------------------------------
+
+    def save_metadata(
+        self,
+        label_encoder: Dict[str, int],
+        X_train,
+        X_val,
+        X_test,
+    ) -> None:
+        """
+        Save dataset metadata.
+        """
+
+        METADATA_DIR.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        class_mapping = {
+            str(index): label
+            for label, index in label_encoder.items()
+        }
+
+        dataset_info = {
+
+            "num_classes": len(label_encoder),
+
+            "train_samples": len(X_train),
+
+            "validation_samples": len(X_val),
+
+            "test_samples": len(X_test),
+
+        }
+
+        with open(
+            METADATA_DIR / "class_mapping.json",
+            "w",
+            encoding="utf-8",
+        ) as file:
+
+            json.dump(
+                class_mapping,
+                file,
+                indent=4,
+            )
+
+        with open(
+            METADATA_DIR / "dataset_info.json",
+            "w",
+            encoding="utf-8",
+        ) as file:
+
+            json.dump(
+                dataset_info,
+                file,
+                indent=4,
+            )
+
+        logger.info(
+            "Metadata generated successfully."
+        )
 
     # ---------------------------------------------------
 
@@ -156,6 +223,13 @@ class DatasetBuilder:
             random_state=RANDOM_SEED,
             shuffle=True,
             stratify=y_temp,
+        )
+
+        self.save_metadata(
+            label_encoder,
+            X_train,
+            X_val,
+            X_test,
         )
 
         logger.info("Dataset successfully built.")
