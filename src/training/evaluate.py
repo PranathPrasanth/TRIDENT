@@ -1,104 +1,130 @@
 """
-TRIDENT Model Evaluation
+TRIDENT Model Evaluator
 
 Evaluates the trained CNN model.
 """
+
+import json
 
 import numpy as np
 import tensorflow as tf
 
 from sklearn.metrics import (
-    accuracy_score,
-    precision_score,
-    recall_score,
-    f1_score,
-    confusion_matrix,
     classification_report,
+    confusion_matrix,
 )
 
+from utils.config import METADATA_DIR
 from utils.logger import logger
 
 
 class ModelEvaluator:
     """
-    Evaluates a trained CNN model.
+    Evaluates the performance of
+    the trained CNN model.
     """
+
+    def __init__(
+        self,
+        model: tf.keras.Model,
+    ) -> None:
+
+        self.model = model
+
+        with open(
+            METADATA_DIR / "class_mapping.json",
+            "r",
+            encoding="utf-8",
+        ) as file:
+
+            self.class_mapping = json.load(file)
+
+        self.class_names = [
+
+            self.class_mapping[str(i)]
+
+            for i in range(
+                len(self.class_mapping)
+            )
+
+        ]
+
+    # ---------------------------------------------------------
 
     def evaluate(
         self,
-        model: tf.keras.Model,
-        test_dataset: tf.data.Dataset,
-    ) -> dict:
+        X_test: np.ndarray,
+        y_test: np.ndarray,
+    ) -> None:
         """
         Evaluate the trained model.
         """
 
-        logger.info("Evaluating model...")
+        logger.info(
+            "Evaluating model..."
+        )
 
-        y_true = []
-        y_pred = []
+        loss, accuracy = self.model.evaluate(
+            X_test,
+            y_test,
+            verbose=0,
+        )
 
-        for features, labels in test_dataset:
+        predictions = self.model.predict(
+            X_test,
+            verbose=0,
+        )
 
-            predictions = model.predict(
-                features,
-                verbose=0,
+        predicted_labels = np.argmax(
+            predictions,
+            axis=1,
+        )
+
+        print()
+
+        print("========== MODEL PERFORMANCE ==========")
+
+        print(f"Loss      : {loss:.4f}")
+
+        print(f"Accuracy  : {accuracy:.2%}")
+
+        print()
+
+        print("========== CLASSIFICATION REPORT ==========")
+
+        print(
+
+            classification_report(
+
+                y_test,
+
+                predicted_labels,
+
+                target_names=self.class_names,
+
             )
 
-            predicted_labels = np.argmax(
-                predictions,
-                axis=1,
+        )
+
+        print()
+
+        print("========== CONFUSION MATRIX ==========")
+
+        print(
+
+            confusion_matrix(
+
+                y_test,
+
+                predicted_labels,
+
             )
 
-            y_true.extend(labels.numpy())
+        )
 
-            y_pred.extend(predicted_labels)
-
-        results = {
-
-            "accuracy": accuracy_score(
-                y_true,
-                y_pred,
-            ),
-
-            "precision": precision_score(
-                y_true,
-                y_pred,
-                average="weighted",
-                zero_division=0,
-            ),
-
-            "recall": recall_score(
-                y_true,
-                y_pred,
-                average="weighted",
-                zero_division=0,
-            ),
-
-            "f1_score": f1_score(
-                y_true,
-                y_pred,
-                average="weighted",
-                zero_division=0,
-            ),
-
-            "confusion_matrix": confusion_matrix(
-                y_true,
-                y_pred,
-            ),
-
-            "classification_report": classification_report(
-                y_true,
-                y_pred,
-                zero_division=0,
-                target_names=class_names,
-            ),
-
-        }
-
-        logger.info("Evaluation completed.")
-
-        return results
+        logger.info(
+            "Evaluation completed."
+        )
 
 
 # -------------------------------------------------------------
@@ -107,4 +133,8 @@ class ModelEvaluator:
 
 if __name__ == "__main__":
 
-    print("ModelEvaluator module loaded successfully.")
+    print()
+
+    print(
+        "ModelEvaluator module loaded successfully."
+    )
