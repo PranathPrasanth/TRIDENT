@@ -11,7 +11,13 @@ import librosa
 import matplotlib.pyplot as plt
 import numpy as np
 
-from utils.config import SAMPLE_RATE
+from utils.config import (
+    SAMPLE_RATE,
+    N_FFT,
+    HOP_LENGTH,
+    N_MFCC,
+)
+
 from utils.logger import logger
 
 
@@ -22,10 +28,10 @@ class MFCCExtractor:
 
     def __init__(
         self,
-        sample_rate: int = SAMPLE_RATE,
-        n_mfcc: int = 20,
-        n_fft: int = 2048,
-        hop_length: int = 512,
+        sample_rate=SAMPLE_RATE
+        n_fft=N_FFT
+        hop_length=HOP_LENGTH
+        n_mfcc=N_MFCC,
     ) -> None:
 
         self.sample_rate = sample_rate

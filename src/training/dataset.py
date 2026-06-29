@@ -7,9 +7,8 @@ features for efficient model training.
 
 import tensorflow as tf
 import numpy as np
-
-from utils.logger import logger
 from utils.config import BATCH_SIZE
+from utils.logger import logger
 
 class DatasetManager:
     """
