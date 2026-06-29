@@ -102,6 +102,8 @@ class ModelEvaluator:
 
                 target_names=self.class_names,
 
+                zero_division=0,
+
             )
 
         )
