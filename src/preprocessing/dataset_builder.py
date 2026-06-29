@@ -10,6 +10,14 @@ from utils.config import (
     METADATA_DIR,
 )
 
+from feature_extraction.mel_spectrogram import (
+    MelSpectrogramExtractor,
+)
+
+from feature_extraction.normalizer import (
+    FeatureNormalizer,
+)
+
 from pathlib import Path
 import random
 from typing import Dict, List
@@ -27,7 +35,7 @@ from utils.config import (
 )
 from utils.logger import logger
 from utils.exceptions import DatasetError
-
+import numpy as np
 
 class DatasetBuilder:
     """
@@ -39,6 +47,10 @@ class DatasetBuilder:
         self.loader = AudioLoader()
 
         self.cleaner = AudioCleaner()
+
+        self.extractor = MelSpectrogramExtractor()
+
+        self.normalizer = FeatureNormalizer()
 
         random.seed(RANDOM_SEED)
 
@@ -188,7 +200,20 @@ class DatasetBuilder:
                         waveform
                     )
 
-                    X.append(waveform)
+                    mel = self.extractor.extract(
+                        waveform
+                    )
+
+                    mel = self.normalizer.normalize(
+                        mel
+                    )
+
+                    mel = np.expand_dims(
+                        mel,
+                        axis=-1,
+                    )
+
+                    X.append(mel)
 
                     y.append(label_encoder[label])
 
@@ -199,6 +224,16 @@ class DatasetBuilder:
                     )
 
                     logger.error(error)
+
+        X = np.asarray(
+            X,
+            dtype=np.float32,
+        )
+
+        y = np.asarray(
+            y,
+            dtype=np.int32,
+        )
 
         if len(X) == 0:
             raise DatasetError("Dataset is empty.")
