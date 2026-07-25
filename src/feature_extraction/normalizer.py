@@ -10,7 +10,7 @@ import json
 
 import numpy as np
 
-from utils.logger import logger
+from src.utils.logger import logger
 
 
 class FeatureNormalizer:

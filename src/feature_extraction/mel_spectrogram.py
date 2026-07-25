@@ -8,15 +8,15 @@ Mel Spectrograms for deep learning.
 import librosa
 import numpy as np
 
-from utils.config import (
+from src.utils.config import (
     SAMPLE_RATE,
     N_FFT,
     HOP_LENGTH,
     N_MELS,
 )
 
-from utils.logger import logger
-from utils.helpers import save_numpy
+from src.utils.logger import logger
+from src.utils.helpers import save_numpy
 
 
 class MelSpectrogramExtractor:
@@ -73,8 +73,8 @@ class MelSpectrogramExtractor:
 
 if __name__ == "__main__":
 
-    from preprocessing.audio_loader import AudioLoader
-    from preprocessing.audio_cleaner import AudioCleaner
+    from src.preprocessing.audio_loader import AudioLoader
+    from src.preprocessing.audio_cleaner import AudioCleaner
 
     loader = AudioLoader()
     cleaner = AudioCleaner()

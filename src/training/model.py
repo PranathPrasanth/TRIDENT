@@ -7,8 +7,8 @@ underwater acoustic target classification.
 
 import tensorflow as tf
 
-from utils.logger import logger
-from utils.config import INPUT_SHAPE, LEARNING_RATE
+from src.utils.logger import logger
+from src.utils.config import INPUT_SHAPE, LEARNING_RATE
 
 
 class TRIDENTModel:

@@ -11,9 +11,9 @@ from typing import Tuple
 import librosa
 import numpy as np
 
-from utils.config import SAMPLE_RATE, MONO
-from utils.logger import logger
-from utils.exceptions import AudioLoadError
+from src.utils.config import SAMPLE_RATE, MONO
+from src.utils.logger import logger
+from src.utils.exceptions import AudioLoadError
 
 
 class AudioLoader:

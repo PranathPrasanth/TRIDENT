@@ -6,15 +6,15 @@ acoustic recordings.
 """
 import json
 
-from utils.config import (
+from src.utils.config import (
     METADATA_DIR,
 )
 
-from feature_extraction.mel_spectrogram import (
+from src.feature_extraction.mel_spectrogram import (
     MelSpectrogramExtractor,
 )
 
-from feature_extraction.normalizer import (
+from src.feature_extraction.normalizer import (
     FeatureNormalizer,
 )
 
@@ -24,17 +24,17 @@ from typing import Dict
 
 from sklearn.model_selection import train_test_split
 
-from preprocessing.audio_loader import AudioLoader
-from preprocessing.audio_cleaner import AudioCleaner
-from utils.config import (
+from src.preprocessing.audio_loader import AudioLoader
+from src.preprocessing.audio_cleaner import AudioCleaner
+from src.utils.config import (
     RAW_DATA_DIR,
     TRAIN_SPLIT,
     VALIDATION_SPLIT,
     TEST_SPLIT,
     RANDOM_SEED,
 )
-from utils.logger import logger
-from utils.exceptions import DatasetError
+from src.utils.logger import logger
+from src.utils.exceptions import DatasetError
 import numpy as np
 
 class DatasetBuilder:

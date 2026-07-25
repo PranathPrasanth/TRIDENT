@@ -29,20 +29,20 @@ from pathlib import Path
 
 import numpy as np
 
-from preprocessing.dataset_builder import DatasetBuilder
+from src.preprocessing.dataset_builder import DatasetBuilder
 
-from training.dataset import DatasetManager
-from training.model import TRIDENTModel
-from training.trainer import ModelTrainer
-from training.evaluate import ModelEvaluator
+from src.training.dataset import DatasetManager
+from src.training.model import TRIDENTModel
+from src.training.trainer import ModelTrainer
+from src.training.evaluate import ModelEvaluator
 
-from inference.predictor import Predictor
+from src.inference.predictor import Predictor
 
-from threat_engine.analyzer import ThreatAnalyzer
+from src.threat_engine.analyzer import ThreatAnalyzer
 
-from explainability.gradcam import GradCAM
+from src.explainability.gradcam import GradCAM
 
-from utils.logger import logger
+from src.utils.logger import logger
 
 
 # ==========================================================
@@ -361,93 +361,6 @@ def main() -> None:
 
         sys.exit(1)
     
-# ==========================================================
-# Main
-# ==========================================================
-
-def main() -> None:
-    """
-    TRIDENT application entry point.
-    """
-
-    parser = argparse.ArgumentParser(
-
-        description=(
-            "TRIDENT - Underwater Acoustic "
-            "Intelligence Platform"
-        )
-
-    )
-
-    parser.add_argument(
-
-        "--predict",
-
-        type=Path,
-
-        help=(
-            "Path to an audio file for inference."
-        ),
-
-    )
-
-    args = parser.parse_args()
-
-    try:
-
-        # ----------------------------------------------
-        # Inference Mode
-        # ----------------------------------------------
-
-        if args.predict is not None:
-
-            if not args.predict.exists():
-
-                raise FileNotFoundError(
-
-                    f"Audio file not found: {args.predict}"
-
-                )
-
-            inference_pipeline(
-                args.predict
-            )
-
-        # ----------------------------------------------
-        # Training Mode
-        # ----------------------------------------------
-
-        else:
-
-            train_pipeline()
-
-        logger.info(
-            "TRIDENT execution completed successfully."
-        )
-
-    except KeyboardInterrupt:
-
-        logger.warning(
-            "Execution interrupted by user."
-        )
-
-        sys.exit(1)
-
-    except Exception as error:
-
-        logger.exception(
-            "TRIDENT execution failed."
-        )
-
-        print()
-
-        print("Execution failed.")
-
-        print(error)
-
-        sys.exit(1)
-
-
 # ==========================================================
 # Entry Point
 # ==========================================================

@@ -11,14 +11,14 @@ import librosa
 import matplotlib.pyplot as plt
 import numpy as np
 
-from utils.config import (
+from src.utils.config import (
     SAMPLE_RATE,
     N_FFT,
     HOP_LENGTH,
     N_MFCC,
 )
 
-from utils.logger import logger
+from src.utils.logger import logger
 
 
 class MFCCExtractor:
@@ -28,9 +28,9 @@ class MFCCExtractor:
 
     def __init__(
         self,
-        sample_rate=SAMPLE_RATE
-        n_fft=N_FFT
-        hop_length=HOP_LENGTH
+        sample_rate=SAMPLE_RATE,
+        n_fft=N_FFT,
+        hop_length=HOP_LENGTH,
         n_mfcc=N_MFCC,
     ) -> None:
 
@@ -132,8 +132,8 @@ class MFCCExtractor:
 
 if __name__ == "__main__":
 
-    from preprocessing.audio_loader import AudioLoader
-    from preprocessing.audio_cleaner import AudioCleaner
+    from src.preprocessing.audio_loader import AudioLoader
+    from src.preprocessing.audio_cleaner import AudioCleaner
 
     loader = AudioLoader()
 

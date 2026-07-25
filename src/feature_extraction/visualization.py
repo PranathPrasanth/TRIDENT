@@ -12,8 +12,8 @@ import librosa.display
 import matplotlib.pyplot as plt
 import numpy as np
 
-from utils.config import SAMPLE_RATE
-from utils.logger import logger
+from src.utils.config import SAMPLE_RATE
+from src.utils.logger import logger
 
 
 class FeatureVisualizer:
@@ -131,14 +131,14 @@ class FeatureVisualizer:
 
 if __name__ == "__main__":
 
-    from preprocessing.audio_loader import AudioLoader
-    from preprocessing.audio_cleaner import AudioCleaner
+    from src.preprocessing.audio_loader import AudioLoader
+    from src.preprocessing.audio_cleaner import AudioCleaner
 
-    from feature_extraction.mel_spectrogram import (
+    from src.feature_extraction.mel_spectrogram import (
         MelSpectrogramExtractor,
     )
 
-    from feature_extraction.mfcc import (
+    from src.feature_extraction.mfcc import (
         MFCCExtractor,
     )
 

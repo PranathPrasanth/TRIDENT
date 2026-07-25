@@ -10,16 +10,16 @@ from pathlib import Path
 import numpy as np
 import tensorflow as tf
 
-from preprocessing.audio_loader import AudioLoader
-from preprocessing.audio_cleaner import AudioCleaner
-from feature_extraction.mel_spectrogram import MelSpectrogramExtractor
-from feature_extraction.normalizer import FeatureNormalizer
+from src.preprocessing.audio_loader import AudioLoader
+from src.preprocessing.audio_cleaner import AudioCleaner
+from src.feature_extraction.mel_spectrogram import MelSpectrogramExtractor
+from src.feature_extraction.normalizer import FeatureNormalizer
 
-from utils.config import (
+from src.utils.config import (
     MODEL_DIR,
     METADATA_DIR,
 )
-from utils.logger import logger
+from src.utils.logger import logger
 
 
 class Predictor:
@@ -78,9 +78,7 @@ class Predictor:
             waveform
         )
 
-        mel = self.normalizer.normalize(
-            mel
-        )
+        mel = self.normalizer.standardize(mel)
 
         mel = np.expand_dims(
             mel,

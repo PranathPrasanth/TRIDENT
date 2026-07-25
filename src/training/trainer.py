@@ -8,9 +8,9 @@ from pathlib import Path
 
 import tensorflow as tf
 
-from utils.logger import logger
-from utils.helpers import ensure_directory
-from utils.config import (
+from src.utils.logger import logger
+from src.utils.helpers import ensure_directory
+from src.utils.config import (
     EPOCHS,
     MODEL_DIR,
     PATIENCE,

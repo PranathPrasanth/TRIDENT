@@ -6,8 +6,8 @@ Converts predictions into threat intelligence.
 
 import json
 
-from utils.config import METADATA_DIR
-from utils.logger import logger
+from src.utils.config import METADATA_DIR
+from src.utils.logger import logger
 
 
 class ThreatAnalyzer:

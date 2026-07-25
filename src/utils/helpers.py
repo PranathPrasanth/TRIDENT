@@ -9,7 +9,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from utils.logger import logger
+from srcutils.logger import logger
 
 
 def ensure_directory(directory: str | Path) -> Path:

@@ -8,8 +8,8 @@ Mel Spectrograms.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from utils.logger import logger
-from utils.helpers import save_figure
+from src.utils.logger import logger
+from src.utils.helpers import save_figure
 
 
 class GradCAMVisualizer:
