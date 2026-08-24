@@ -56,7 +56,7 @@ class DatasetBuilder:
 
     # ---------------------------------------------------
 
-    def scan_dataset(self) -> Dict[str, List[Path]]:
+    def scan_dataset(self) -> Dict[str, list[Path]]:
         """
         Scan dataset folders.
 
