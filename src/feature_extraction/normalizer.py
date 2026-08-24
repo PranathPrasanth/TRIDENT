@@ -46,7 +46,33 @@ class FeatureNormalizer:
             raise ValueError("Empty feature vector.")
 
     # ---------------------------------------------------------
+    def normalize(
+        self,
+        features: np.ndarray,
+    ) -> np.ndarray:
+        """
+        Normalize a feature representation for TRIDENT.
 
+        Uses per-sample min-max normalization to scale
+        the feature values to the range [0, 1].
+        """
+
+        self.validate(features)
+
+        minimum = np.min(features)
+        maximum = np.max(features)
+
+        if maximum == minimum:
+            return np.zeros_like(features, dtype=np.float32)
+
+        normalized = (
+            (features - minimum)
+            / (maximum - minimum)
+        )
+
+        return normalized.astype(np.float32)
+    # ---------------------------------------------------------
+    
     def fit(self, features: np.ndarray) -> None:
         """
         Learn normalization statistics.
