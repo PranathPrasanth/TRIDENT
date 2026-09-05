@@ -4,10 +4,22 @@ TRIDENT Dataset Builder
 Builds machine learning datasets from underwater
 acoustic recordings.
 """
+
 import json
+import random
+from pathlib import Path
+from typing import Dict
+
+import numpy as np
+from sklearn.model_selection import train_test_split
 
 from src.utils.config import (
     METADATA_DIR,
+    RAW_DATA_DIR,
+    TRAIN_SPLIT,
+    VALIDATION_SPLIT,
+    TEST_SPLIT,
+    RANDOM_SEED,
 )
 
 from src.feature_extraction.mel_spectrogram import (
@@ -18,24 +30,20 @@ from src.feature_extraction.normalizer import (
     FeatureNormalizer,
 )
 
-from pathlib import Path
-import random
-from typing import Dict
-
-from sklearn.model_selection import train_test_split
-
-from src.preprocessing.audio_loader import AudioLoader
-from src.preprocessing.audio_cleaner import AudioCleaner
-from src.utils.config import (
-    RAW_DATA_DIR,
-    TRAIN_SPLIT,
-    VALIDATION_SPLIT,
-    TEST_SPLIT,
-    RANDOM_SEED,
+from src.preprocessing.audio_loader import (
+    AudioLoader,
 )
+
+from src.preprocessing.audio_cleaner import (
+    AudioCleaner,
+)
+
 from src.utils.logger import logger
-from src.utils.exceptions import DatasetError
-import numpy as np
+
+from src.utils.exceptions import (
+    DatasetError,
+)
+
 
 class DatasetBuilder:
     """
@@ -54,6 +62,8 @@ class DatasetBuilder:
 
         random.seed(RANDOM_SEED)
 
+    # ---------------------------------------------------
+    # Scan Dataset
     # ---------------------------------------------------
 
     def scan_dataset(self) -> Dict[str, list[Path]]:
@@ -74,17 +84,25 @@ class DatasetBuilder:
         dataset = {}
 
         if not RAW_DATA_DIR.exists():
-            raise DatasetError(f"{RAW_DATA_DIR} does not exist.")
+            raise DatasetError(
+                f"{RAW_DATA_DIR} does not exist."
+            )
 
         for folder in sorted(RAW_DATA_DIR.iterdir()):
 
             if not folder.is_dir():
                 continue
 
-            wav_files = sorted(folder.glob("*.wav"))
+            wav_files = sorted(
+                folder.glob("*.wav")
+            )
 
             if len(wav_files) == 0:
-                logger.warning(f"No WAV files found in {folder.name}")
+
+                logger.warning(
+                    f"No WAV files found in {folder.name}"
+                )
+
                 continue
 
             dataset[folder.name] = wav_files
@@ -92,19 +110,103 @@ class DatasetBuilder:
         return dataset
 
     # ---------------------------------------------------
+    # Encode Labels
+    # ---------------------------------------------------
 
     def encode_labels(
         self,
-        dataset: dict[str, list[Path]]
+        dataset: dict[str, list[Path]],
     ) -> dict[str, int]:
+        """
+        Create a numerical label for every class.
+        """
 
-        classes = sorted(dataset.keys())
+        classes = sorted(
+            dataset.keys()
+        )
 
         return {
             label: index
             for index, label in enumerate(classes)
         }
-    
+
+    # ---------------------------------------------------
+    # Resize Mel Spectrogram
+    # ---------------------------------------------------
+
+    def resize_mel(
+        self,
+        mel: np.ndarray,
+        target_height: int = 128,
+        target_width: int = 128,
+    ) -> np.ndarray:
+        """
+        Convert a Mel spectrogram into a fixed size.
+
+        Every spectrogram must have the same dimensions
+        before it can be combined into one NumPy array.
+
+        Target shape:
+
+            (128, 128)
+        """
+
+        height, width = mel.shape
+
+        # ------------------------------------------------
+        # Fix Mel-frequency dimension
+        # ------------------------------------------------
+
+        if height > target_height:
+
+            mel = mel[
+                :target_height,
+                :
+            ]
+
+        elif height < target_height:
+
+            padding = target_height - height
+
+            mel = np.pad(
+                mel,
+                (
+                    (0, padding),
+                    (0, 0),
+                ),
+                mode="constant",
+            )
+
+        # ------------------------------------------------
+        # Fix time dimension
+        # ------------------------------------------------
+
+        if width > target_width:
+
+            mel = mel[
+                :,
+                :target_width
+            ]
+
+        elif width < target_width:
+
+            padding = target_width - width
+
+            mel = np.pad(
+                mel,
+                (
+                    (0, 0),
+                    (0, padding),
+                ),
+                mode="constant",
+            )
+
+        return mel.astype(
+            np.float32
+        )
+
+    # ---------------------------------------------------
+    # Save Metadata
     # ---------------------------------------------------
 
     def save_metadata(
@@ -125,18 +227,27 @@ class DatasetBuilder:
 
         class_mapping = {
             str(index): label
-            for label, index in label_encoder.items()
+            for label, index
+            in label_encoder.items()
         }
 
         dataset_info = {
 
-            "num_classes": len(label_encoder),
+            "num_classes": len(
+                label_encoder
+            ),
 
-            "train_samples": len(X_train),
+            "train_samples": len(
+                X_train
+            ),
 
-            "validation_samples": len(X_val),
+            "validation_samples": len(
+                X_val
+            ),
 
-            "test_samples": len(X_test),
+            "test_samples": len(
+                X_test
+            ),
 
         }
 
@@ -169,71 +280,139 @@ class DatasetBuilder:
         )
 
     # ---------------------------------------------------
+    # Build Dataset
+    # ---------------------------------------------------
 
     def build(
         self,
     ) -> tuple[
-        np.ndarray, 
-        np.ndarray, 
-        np.ndarray, 
-        np.ndarray, 
-        np.ndarray, 
-        np.ndarray, 
-        dict[str, int]
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        dict[str, int],
     ]:
 
-        logger.info("Scanning dataset...")
+        logger.info(
+            "Scanning dataset..."
+        )
 
         dataset = self.scan_dataset()
 
-        label_encoder = self.encode_labels(dataset)
+        if not dataset:
+
+            raise DatasetError(
+                "No valid dataset classes found."
+            )
+
+        label_encoder = self.encode_labels(
+            dataset
+        )
 
         X: list[np.ndarray] = []
 
         y: list[int] = []
 
+        # ------------------------------------------------
+        # Process every class
+        # ------------------------------------------------
+
         for label, wav_files in dataset.items():
 
             logger.info(
-                f"Processing {label} ({len(wav_files)} files)"
+                f"Processing {label} "
+                f"({len(wav_files)} files)"
             )
 
             for wav_file in wav_files:
 
                 try:
 
-                    waveform, _ = self.loader.load_audio(
-                        wav_file
+                    # ------------------------------------
+                    # Load audio
+                    # ------------------------------------
+
+                    waveform, _ = (
+                        self.loader.load_audio(
+                            wav_file
+                        )
                     )
 
-                    waveform = self.cleaner.clean(
-                        waveform
+                    # ------------------------------------
+                    # Clean audio
+                    # ------------------------------------
+
+                    waveform = (
+                        self.cleaner.clean(
+                            waveform
+                        )
                     )
 
-                    mel = self.extractor.extract(
-                        waveform
+                    # ------------------------------------
+                    # Generate Mel spectrogram
+                    # ------------------------------------
+
+                    mel = (
+                        self.extractor.extract(
+                            waveform
+                        )
                     )
 
-                    mel = self.normalizer.normalize(
+                    # ------------------------------------
+                    # Normalize
+                    # ------------------------------------
+
+                    mel = (
+                        self.normalizer.normalize(
+                            mel
+                        )
+                    )
+
+                    # ------------------------------------
+                    # Make fixed size
+                    # ------------------------------------
+
+                    mel = self.resize_mel(
                         mel
                     )
+
+                    # ------------------------------------
+                    # Add channel dimension
+                    # ------------------------------------
 
                     mel = np.expand_dims(
                         mel,
                         axis=-1,
                     )
 
-                    X.append(mel)
+                    # ------------------------------------
+                    # Store sample
+                    # ------------------------------------
 
-                    y.append(label_encoder[label])
+                    X.append(
+                        mel
+                    )
+
+                    y.append(
+                        label_encoder[label]
+                    )
 
                 except Exception as error:
 
                     logger.error(
-                        f"Failed loading {wav_file.name}"
+                        f"Failed loading "
+                        f"{wav_file.name}"
                     )
 
-                    logger.error(error)
+                    logger.error(
+                        error
+                    )
+
+        # ------------------------------------------------
+        # Convert lists to NumPy arrays
+        # ------------------------------------------------
 
         X = np.asarray(
             X,
@@ -245,30 +424,65 @@ class DatasetBuilder:
             dtype=np.int32,
         )
 
+        # ------------------------------------------------
+        # Check dataset
+        # ------------------------------------------------
+
         if len(X) == 0:
-            raise DatasetError("Dataset is empty.")
 
-        X_train, X_temp, y_train, y_temp = train_test_split(
-            X,
-            y,
-            train_size=TRAIN_SPLIT,
-            random_state=RANDOM_SEED,
-            shuffle=True,
-            stratify=y,
+            raise DatasetError(
+                "Dataset is empty."
+            )
+
+        logger.info(
+            f"Dataset shape: {X.shape}"
         )
 
-        validation_ratio = VALIDATION_SPLIT / (
-            VALIDATION_SPLIT + TEST_SPLIT
+        logger.info(
+            f"Labels shape: {y.shape}"
         )
 
-        X_val, X_test, y_val, y_test = train_test_split(
-            X_temp,
-            y_temp,
-            train_size=validation_ratio,
-            random_state=RANDOM_SEED,
-            shuffle=True,
-            stratify=y_temp,
+        # ------------------------------------------------
+        # Train / Temporary Split
+        # ------------------------------------------------
+
+        X_train, X_temp, y_train, y_temp = (
+            train_test_split(
+                X,
+                y,
+                train_size=TRAIN_SPLIT,
+                random_state=RANDOM_SEED,
+                shuffle=True,
+                stratify=y,
+            )
         )
+
+        # ------------------------------------------------
+        # Validation / Test Split
+        # ------------------------------------------------
+
+        validation_ratio = (
+            VALIDATION_SPLIT
+            / (
+                VALIDATION_SPLIT
+                + TEST_SPLIT
+            )
+        )
+
+        X_val, X_test, y_val, y_test = (
+            train_test_split(
+                X_temp,
+                y_temp,
+                train_size=validation_ratio,
+                random_state=RANDOM_SEED,
+                shuffle=True,
+                stratify=y_temp,
+            )
+        )
+
+        # ------------------------------------------------
+        # Save Metadata
+        # ------------------------------------------------
 
         self.save_metadata(
             label_encoder,
@@ -277,7 +491,13 @@ class DatasetBuilder:
             X_test,
         )
 
-        logger.info("Dataset successfully built.")
+        logger.info(
+            "Dataset successfully built."
+        )
+
+        # ------------------------------------------------
+        # Return Dataset
+        # ------------------------------------------------
 
         return (
             X_train,
@@ -289,6 +509,10 @@ class DatasetBuilder:
             label_encoder,
         )
 
+
+# =======================================================
+# Standalone Test
+# =======================================================
 
 if __name__ == "__main__":
 
@@ -306,16 +530,41 @@ if __name__ == "__main__":
 
     print()
 
-    print("========== DATASET SUMMARY ==========")
+    print(
+        "========== DATASET SUMMARY =========="
+    )
 
-    print(f"Training Samples   : {len(X_train)}")
+    print(
+        f"Training Samples   : {len(X_train)}"
+    )
 
-    print(f"Validation Samples : {len(X_val)}")
+    print(
+        f"Validation Samples : {len(X_val)}"
+    )
 
-    print(f"Testing Samples    : {len(X_test)}")
+    print(
+        f"Testing Samples    : {len(X_test)}"
+    )
 
     print()
 
     print("Label Mapping")
 
     print(labels)
+
+    print()
+
+    print(
+        "Training Shape     : "
+        f"{X_train.shape}"
+    )
+
+    print(
+        "Validation Shape   : "
+        f"{X_val.shape}"
+    )
+
+    print(
+        "Testing Shape      : "
+        f"{X_test.shape}"
+    )
