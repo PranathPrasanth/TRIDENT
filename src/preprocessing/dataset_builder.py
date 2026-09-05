@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Dict
 
 import numpy as np
-from sklearn.model_selection import train_test_split
 
 from src.utils.config import (
     METADATA_DIR,
@@ -73,7 +72,6 @@ class DatasetBuilder:
         Returns
         -------
         Dictionary
-
         {
             "submarine": [...],
             "ship": [...],
@@ -203,6 +201,286 @@ class DatasetBuilder:
 
         return mel.astype(
             np.float32
+        )
+
+    # ---------------------------------------------------
+    # Split Dataset By Class
+    # ---------------------------------------------------
+
+    def split_by_class(
+        self,
+        X: np.ndarray,
+        y: np.ndarray,
+    ) -> tuple[
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+    ]:
+        """
+        Split the dataset into train, validation and test
+        sets while making sure every class appears in
+        every split.
+
+        This is especially important for small datasets.
+
+        Example:
+
+        If a class has only 3 samples:
+
+            Train = 1
+            Validation = 1
+            Test = 1
+
+        This avoids failures caused by stratified
+        train_test_split when a class has very few samples.
+        """
+
+        train_indices = []
+        validation_indices = []
+        test_indices = []
+
+        # ------------------------------------------------
+        # Process each class separately
+        # ------------------------------------------------
+
+        classes = np.unique(y)
+
+        for class_label in classes:
+
+            class_indices = np.where(
+                y == class_label
+            )[0]
+
+            # Shuffle class samples
+            rng = np.random.default_rng(
+                RANDOM_SEED + int(class_label)
+            )
+
+            rng.shuffle(
+                class_indices
+            )
+
+            number_of_samples = len(
+                class_indices
+            )
+
+            # ------------------------------------------------
+            # Need at least 3 samples
+            # ------------------------------------------------
+
+            if number_of_samples < 3:
+
+                raise DatasetError(
+                    f"Class {class_label} has only "
+                    f"{number_of_samples} samples. "
+                    "At least 3 samples are required "
+                    "to create train, validation and "
+                    "test sets."
+                )
+
+            # ------------------------------------------------
+            # Give every class one sample in every split
+            # ------------------------------------------------
+
+            if number_of_samples == 3:
+
+                train_count = 1
+                validation_count = 1
+                test_count = 1
+
+            else:
+
+                # Start with the requested proportions
+                train_count = max(
+                    1,
+                    int(
+                        number_of_samples
+                        * TRAIN_SPLIT
+                    ),
+                )
+
+                validation_count = max(
+                    1,
+                    int(
+                        number_of_samples
+                        * VALIDATION_SPLIT
+                    ),
+                )
+
+                test_count = max(
+                    1,
+                    int(
+                        number_of_samples
+                        * TEST_SPLIT
+                    ),
+                )
+
+                # ------------------------------------------------
+                # Correct rounding differences
+                # ------------------------------------------------
+
+                total = (
+                    train_count
+                    + validation_count
+                    + test_count
+                )
+
+                while total < number_of_samples:
+
+                    train_count += 1
+                    total += 1
+
+                while total > number_of_samples:
+
+                    # Remove from the largest split
+                    # but never reduce below 1.
+                    if (
+                        train_count
+                        >= validation_count
+                        and train_count
+                        >= test_count
+                        and train_count > 1
+                    ):
+                        train_count -= 1
+
+                    elif (
+                        validation_count
+                        >= test_count
+                        and validation_count > 1
+                    ):
+                        validation_count -= 1
+
+                    elif test_count > 1:
+                        test_count -= 1
+
+                    total = (
+                        train_count
+                        + validation_count
+                        + test_count
+                    )
+
+            # ------------------------------------------------
+            # Create index ranges
+            # ------------------------------------------------
+
+            train_end = train_count
+
+            validation_end = (
+                train_end
+                + validation_count
+            )
+
+            train_indices.extend(
+                class_indices[
+                    :train_end
+                ]
+            )
+
+            validation_indices.extend(
+                class_indices[
+                    train_end:validation_end
+                ]
+            )
+
+            test_indices.extend(
+                class_indices[
+                    validation_end:
+                ]
+            )
+
+            logger.info(
+                f"Class {class_label}: "
+                f"{number_of_samples} samples -> "
+                f"Train={train_count}, "
+                f"Validation={validation_count}, "
+                f"Test={test_count}"
+            )
+
+        # ------------------------------------------------
+        # Convert indices to arrays
+        # ------------------------------------------------
+
+        train_indices = np.asarray(
+            train_indices,
+            dtype=np.int32,
+        )
+
+        validation_indices = np.asarray(
+            validation_indices,
+            dtype=np.int32,
+        )
+
+        test_indices = np.asarray(
+            test_indices,
+            dtype=np.int32,
+        )
+
+        # ------------------------------------------------
+        # Shuffle final splits
+        # ------------------------------------------------
+
+        rng = np.random.default_rng(
+            RANDOM_SEED
+        )
+
+        rng.shuffle(train_indices)
+        rng.shuffle(validation_indices)
+        rng.shuffle(test_indices)
+
+        # ------------------------------------------------
+        # Create datasets
+        # ------------------------------------------------
+
+        X_train = X[
+            train_indices
+        ]
+
+        y_train = y[
+            train_indices
+        ]
+
+        X_val = X[
+            validation_indices
+        ]
+
+        y_val = y[
+            validation_indices
+        ]
+
+        X_test = X[
+            test_indices
+        ]
+
+        y_test = y[
+            test_indices
+        ]
+
+        logger.info(
+            "Dataset split completed successfully."
+        )
+
+        logger.info(
+            f"Train samples      : {len(X_train)}"
+        )
+
+        logger.info(
+            f"Validation samples : {len(X_val)}"
+        )
+
+        logger.info(
+            f"Test samples       : {len(X_test)}"
+        )
+
+        return (
+            X_train,
+            X_val,
+            X_test,
+            y_train,
+            y_val,
+            y_test,
         )
 
     # ---------------------------------------------------
@@ -443,41 +721,19 @@ class DatasetBuilder:
         )
 
         # ------------------------------------------------
-        # Train / Temporary Split
+        # Train / Validation / Test Split
         # ------------------------------------------------
 
-        X_train, X_temp, y_train, y_temp = (
-            train_test_split(
-                X,
-                y,
-                train_size=TRAIN_SPLIT,
-                random_state=RANDOM_SEED,
-                shuffle=True,
-                stratify=y,
-            )
-        )
-
-        # ------------------------------------------------
-        # Validation / Test Split
-        # ------------------------------------------------
-
-        validation_ratio = (
-            VALIDATION_SPLIT
-            / (
-                VALIDATION_SPLIT
-                + TEST_SPLIT
-            )
-        )
-
-        X_val, X_test, y_val, y_test = (
-            train_test_split(
-                X_temp,
-                y_temp,
-                train_size=validation_ratio,
-                random_state=RANDOM_SEED,
-                shuffle=True,
-                stratify=y_temp,
-            )
+        (
+            X_train,
+            X_val,
+            X_test,
+            y_train,
+            y_val,
+            y_test,
+        ) = self.split_by_class(
+            X,
+            y,
         )
 
         # ------------------------------------------------
