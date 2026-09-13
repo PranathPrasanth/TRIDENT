@@ -13,7 +13,7 @@ from src.utils.logger import logger
 
 class GradCAM:
     """
-    Generates Grad-CAM heatmaps.
+    Generates Grad-CAM heatmaps for a CNN model.
     """
 
     def __init__(
@@ -23,21 +23,31 @@ class GradCAM:
 
         self.model = model
 
-        # Find the final convolutional layer once.
-        self.last_conv_layer = None
+        self.last_conv_layer = self._find_last_conv_layer()
+
+        logger.info(
+            "Grad-CAM target layer: %s",
+            self.last_conv_layer.name,
+        )
+
+    def _find_last_conv_layer(
+        self,
+    ) -> tf.keras.layers.Conv2D:
+        """
+        Find the final Conv2D layer automatically.
+        """
 
         for layer in reversed(self.model.layers):
+
             if isinstance(
                 layer,
                 tf.keras.layers.Conv2D,
             ):
-                self.last_conv_layer = layer
-                break
+                return layer
 
-        if self.last_conv_layer is None:
-            raise ValueError(
-                "No Conv2D layer found in the model."
-            )
+        raise ValueError(
+            "No Conv2D layer found in the model."
+        )
 
     def generate(
         self,
@@ -45,6 +55,17 @@ class GradCAM:
     ) -> np.ndarray:
         """
         Generate a Grad-CAM heatmap.
+
+        Parameters
+        ----------
+        image:
+            Model input with shape:
+            (1, 128, 128, 1)
+
+        Returns
+        -------
+        np.ndarray
+            Normalized heatmap.
         """
 
         logger.info(
@@ -58,39 +79,34 @@ class GradCAM:
 
         with tf.GradientTape() as tape:
 
-            # Watch the activation of the final
-            # convolutional layer.
-            conv_outputs = self.last_conv_layer(
+            # Build a model that returns:
+            # 1. Final convolutional activations
+            # 2. Final classification prediction
+            grad_model = tf.keras.models.Model(
+                inputs=self.model.inputs,
+                outputs=[
+                    self.last_conv_layer.output,
+                    self.model.layers[-1].output,
+                ],
+            )
+
+            conv_outputs, predictions = grad_model(
                 image,
+                training=False,
             )
-
-            # Continue the model forward pass from
-            # the convolutional layer to the output.
-            x = conv_outputs
-
-            layer_index = self.model.layers.index(
-                self.last_conv_layer
-            )
-
-            for layer in self.model.layers[
-                layer_index + 1:
-            ]:
-                x = layer(x)
-
-            predictions = x
 
             predicted_class = tf.argmax(
                 predictions[0],
                 output_type=tf.int32,
             )
 
-            loss = predictions[
+            class_score = predictions[
                 0,
                 predicted_class,
             ]
 
         gradients = tape.gradient(
-            loss,
+            class_score,
             conv_outputs,
         )
 
@@ -99,23 +115,29 @@ class GradCAM:
                 "Unable to compute Grad-CAM gradients."
             )
 
+        # Global average pooling of gradients.
         pooled_gradients = tf.reduce_mean(
             gradients,
             axis=(0, 1, 2),
         )
 
+        # Remove batch dimension.
         conv_outputs = conv_outputs[0]
 
+        # Weight each feature map by its
+        # corresponding gradient importance.
         heatmap = tf.reduce_sum(
             pooled_gradients * conv_outputs,
             axis=-1,
         )
 
+        # Keep only positive activations.
         heatmap = tf.maximum(
             heatmap,
             0,
         )
 
+        # Normalize to [0, 1].
         maximum = tf.reduce_max(heatmap)
 
         heatmap = heatmap / (
