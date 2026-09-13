@@ -5,8 +5,8 @@ Generates Grad-CAM heatmaps for explaining
 CNN predictions.
 """
 
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
 
 from src.utils.logger import logger
 
@@ -23,8 +23,6 @@ class GradCAM:
 
         self.model = model
 
-    # ---------------------------------------------------------
-
     def _find_last_conv_layer(
         self,
     ) -> str:
@@ -32,9 +30,7 @@ class GradCAM:
         Find the last Conv2D layer automatically.
         """
 
-        for layer in reversed(
-            self.model.layers
-        ):
+        for layer in reversed(self.model.layers):
 
             if isinstance(
                 layer,
@@ -46,8 +42,6 @@ class GradCAM:
         raise ValueError(
             "No Conv2D layer found in the model."
         )
-
-    # ---------------------------------------------------------
 
     def generate(
         self,
@@ -61,30 +55,31 @@ class GradCAM:
             "Generating Grad-CAM heatmap..."
         )
 
+        # Ensure the model has been called before
+        # accessing its outputs.
+        _ = self.model(image, training=False)
+
         last_conv_layer_name = (
             self._find_last_conv_layer()
         )
 
+        last_conv_layer = self.model.get_layer(
+            last_conv_layer_name
+        )
+
         grad_model = tf.keras.models.Model(
-
             inputs=self.model.inputs,
-
             outputs=[
-
-                self.model.get_layer(
-                    last_conv_layer_name
-                ).output,
-
-                self.model.output,
-
+                last_conv_layer.output,
+                self.model.outputs[0],
             ],
-
         )
 
         with tf.GradientTape() as tape:
 
             conv_outputs, predictions = grad_model(
-                image
+                image,
+                training=False,
             )
 
             predicted_class = tf.argmax(
@@ -93,7 +88,7 @@ class GradCAM:
             )
 
             loss = predictions[
-                :,
+                0,
                 predicted_class,
             ]
 
@@ -102,25 +97,21 @@ class GradCAM:
             conv_outputs,
         )
 
+        if gradients is None:
+            raise ValueError(
+                "Unable to compute Grad-CAM gradients."
+            )
+
         pooled_gradients = tf.reduce_mean(
-
             gradients,
-
             axis=(0, 1, 2),
-
         )
 
-        conv_outputs = tf.squeeze(
-            conv_outputs,
-            axis=0,
-        )
+        conv_outputs = conv_outputs[0]
 
         heatmap = tf.reduce_sum(
-
             pooled_gradients * conv_outputs,
-
             axis=-1,
-
         )
 
         heatmap = tf.maximum(
@@ -128,9 +119,10 @@ class GradCAM:
             0,
         )
 
-        heatmap /= (
-            tf.reduce_max(heatmap)
-            + 1e-10
+        max_value = tf.reduce_max(heatmap)
+
+        heatmap = heatmap / (
+            max_value + 1e-10
         )
 
         logger.info(
