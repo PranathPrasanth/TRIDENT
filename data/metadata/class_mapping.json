@@ -1,11 +1,6 @@
 {
-  "0":"ambient_noise",
-  "1":"dolphin",
-  "2":"mine",
-  "3":"seal",
-  "4":"ship",
-  "5":"submarine",
-  "6":"torpedo",
-  "7":"uuv",
-  "8":"whale"
+    "0": "cargo_ship",
+    "1": "passenger_ship",
+    "2": "tanker",
+    "3": "tug"
 }
