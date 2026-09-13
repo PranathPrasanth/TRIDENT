@@ -15,11 +15,12 @@ class TRIDENTModel:
     """
     CNN model for underwater acoustic classification.
     """
+
     def __init__(
-    self,
-    num_classes: int,
-    input_shape: tuple[int, int, int] = INPUT_SHAPE,
-    )-> None:
+        self,
+        num_classes: int,
+        input_shape: tuple[int, int, int] = INPUT_SHAPE,
+    ) -> None:
 
         self.input_shape = input_shape
         self.num_classes = num_classes
@@ -30,23 +31,33 @@ class TRIDENTModel:
             )
 
     # ---------------------------------------------------------
+    # Build Model
+    # ---------------------------------------------------------
 
     def build(self) -> tf.keras.Model:
         """
         Build and compile the CNN.
         """
 
-        logger.info("Building CNN model...")
+        logger.info(
+            "Building TRIDENT CNN model..."
+        )
 
         model = tf.keras.Sequential(
-
             [
 
                 tf.keras.layers.Input(
                     shape=self.input_shape
                 ),
 
-                # -------------------------
+                # Small input noise improves robustness
+                tf.keras.layers.GaussianNoise(
+                    0.02
+                ),
+
+                # -------------------------------------------------
+                # Convolution Block 1
+                # -------------------------------------------------
 
                 tf.keras.layers.Conv2D(
                     filters=32,
@@ -55,11 +66,15 @@ class TRIDENTModel:
                     padding="same",
                 ),
 
+                tf.keras.layers.BatchNormalization(),
+
                 tf.keras.layers.MaxPooling2D(
                     pool_size=(2, 2)
                 ),
 
-                # -------------------------
+                # -------------------------------------------------
+                # Convolution Block 2
+                # -------------------------------------------------
 
                 tf.keras.layers.Conv2D(
                     filters=64,
@@ -68,11 +83,15 @@ class TRIDENTModel:
                     padding="same",
                 ),
 
+                tf.keras.layers.BatchNormalization(),
+
                 tf.keras.layers.MaxPooling2D(
                     pool_size=(2, 2)
                 ),
 
-                # -------------------------
+                # -------------------------------------------------
+                # Convolution Block 3
+                # -------------------------------------------------
 
                 tf.keras.layers.Conv2D(
                     filters=128,
@@ -81,22 +100,30 @@ class TRIDENTModel:
                     padding="same",
                 ),
 
+                tf.keras.layers.BatchNormalization(),
+
                 tf.keras.layers.MaxPooling2D(
                     pool_size=(2, 2)
                 ),
 
-                # -------------------------
+                # -------------------------------------------------
+                # Global pooling
+                # -------------------------------------------------
 
-                tf.keras.layers.Flatten(),
+                tf.keras.layers.GlobalAveragePooling2D(),
 
                 tf.keras.layers.Dense(
-                    256,
+                    128,
                     activation="relu",
                 ),
 
                 tf.keras.layers.Dropout(
-                    0.5
+                    0.4
                 ),
+
+                # -------------------------------------------------
+                # Output
+                # -------------------------------------------------
 
                 tf.keras.layers.Dense(
                     self.num_classes,
@@ -104,22 +131,19 @@ class TRIDENTModel:
                 ),
 
             ]
-
         )
 
         model.compile(
-
             optimizer=tf.keras.optimizers.Adam(
                 learning_rate=LEARNING_RATE
             ),
-
             loss="sparse_categorical_crossentropy",
-
             metrics=["accuracy"],
-
         )
 
-        logger.info("CNN model built successfully.")
+        logger.info(
+            "TRIDENT CNN model built successfully."
+        )
 
         return model
 
@@ -130,7 +154,9 @@ class TRIDENTModel:
 
 if __name__ == "__main__":
 
-    cnn = TRIDENTModel(num_classes=4)
+    cnn = TRIDENTModel(
+        num_classes=4
+    )
 
     model = cnn.build()
 
