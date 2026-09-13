@@ -23,25 +23,21 @@ class GradCAM:
 
         self.model = model
 
-    def _find_last_conv_layer(
-        self,
-    ) -> str:
-        """
-        Find the last Conv2D layer automatically.
-        """
+        # Find the final convolutional layer once.
+        self.last_conv_layer = None
 
         for layer in reversed(self.model.layers):
-
             if isinstance(
                 layer,
                 tf.keras.layers.Conv2D,
             ):
+                self.last_conv_layer = layer
+                break
 
-                return layer.name
-
-        raise ValueError(
-            "No Conv2D layer found in the model."
-        )
+        if self.last_conv_layer is None:
+            raise ValueError(
+                "No Conv2D layer found in the model."
+            )
 
     def generate(
         self,
@@ -55,32 +51,33 @@ class GradCAM:
             "Generating Grad-CAM heatmap..."
         )
 
-        # Ensure the model has been called before
-        # accessing its outputs.
-        _ = self.model(image, training=False)
-
-        last_conv_layer_name = (
-            self._find_last_conv_layer()
-        )
-
-        last_conv_layer = self.model.get_layer(
-            last_conv_layer_name
-        )
-
-        grad_model = tf.keras.models.Model(
-            inputs=self.model.inputs,
-            outputs=[
-                last_conv_layer.output,
-                self.model.outputs[0],
-            ],
+        image = tf.convert_to_tensor(
+            image,
+            dtype=tf.float32,
         )
 
         with tf.GradientTape() as tape:
 
-            conv_outputs, predictions = grad_model(
+            # Watch the activation of the final
+            # convolutional layer.
+            conv_outputs = self.last_conv_layer(
                 image,
-                training=False,
             )
+
+            # Continue the model forward pass from
+            # the convolutional layer to the output.
+            x = conv_outputs
+
+            layer_index = self.model.layers.index(
+                self.last_conv_layer
+            )
+
+            for layer in self.model.layers[
+                layer_index + 1:
+            ]:
+                x = layer(x)
+
+            predictions = x
 
             predicted_class = tf.argmax(
                 predictions[0],
@@ -119,10 +116,10 @@ class GradCAM:
             0,
         )
 
-        max_value = tf.reduce_max(heatmap)
+        maximum = tf.reduce_max(heatmap)
 
         heatmap = heatmap / (
-            max_value + 1e-10
+            maximum + 1e-10
         )
 
         logger.info(
