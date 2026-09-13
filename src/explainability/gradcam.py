@@ -13,7 +13,7 @@ from src.utils.logger import logger
 
 class GradCAM:
     """
-    Generates Grad-CAM heatmaps for a CNN model.
+    Generates Grad-CAM heatmaps for a Sequential CNN.
     """
 
     def __init__(
@@ -65,7 +65,7 @@ class GradCAM:
         Returns
         -------
         np.ndarray
-            Normalized heatmap.
+            Normalized Grad-CAM heatmap.
         """
 
         logger.info(
@@ -79,21 +79,27 @@ class GradCAM:
 
         with tf.GradientTape() as tape:
 
-            # Build a model that returns:
-            # 1. Final convolutional activations
-            # 2. Final classification prediction
-            grad_model = tf.keras.models.Model(
-                inputs=self.model.inputs,
-                outputs=[
-                    self.last_conv_layer.output,
-                    self.model.layers[-1].output,
-                ],
-            )
+            x = image
 
-            conv_outputs, predictions = grad_model(
-                image,
-                training=False,
-            )
+            conv_outputs = None
+
+            # Run the complete Sequential model
+            # layer-by-layer inside the same gradient
+            # tape.
+            for layer in self.model.layers:
+
+                x = layer(x, training=False)
+
+                if layer is self.last_conv_layer:
+                    conv_outputs = x
+
+            predictions = x
+
+            if conv_outputs is None:
+                raise ValueError(
+                    "Final convolutional activation "
+                    "was not captured."
+                )
 
             predicted_class = tf.argmax(
                 predictions[0],
@@ -115,7 +121,8 @@ class GradCAM:
                 "Unable to compute Grad-CAM gradients."
             )
 
-        # Global average pooling of gradients.
+        # Global average pooling over the spatial
+        # dimensions.
         pooled_gradients = tf.reduce_mean(
             gradients,
             axis=(0, 1, 2),
@@ -124,14 +131,14 @@ class GradCAM:
         # Remove batch dimension.
         conv_outputs = conv_outputs[0]
 
-        # Weight each feature map by its
-        # corresponding gradient importance.
+        # Weight each feature map according to the
+        # importance of its gradient.
         heatmap = tf.reduce_sum(
             pooled_gradients * conv_outputs,
             axis=-1,
         )
 
-        # Keep only positive activations.
+        # ReLU: keep positive influence only.
         heatmap = tf.maximum(
             heatmap,
             0,
