@@ -138,10 +138,15 @@ def train_pipeline():
 
     trainer = ModelTrainer()
 
+    class_weights = trainer.calculate_class_weights(
+    y_train
+    )
+
     trainer.train(
         model=model,
         train_dataset=train_dataset,
         validation_dataset=validation_dataset,
+        class_weights=class_weights,
     )
 
     logger.info(
