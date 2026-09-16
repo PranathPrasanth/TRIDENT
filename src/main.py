@@ -64,17 +64,13 @@ def train_pipeline():
         )
     """
 
-    logger.info(
-        "=" * 60
-    )
+    logger.info("=" * 60)
 
     logger.info(
         "TRIDENT Training Pipeline Started"
     )
 
-    logger.info(
-        "=" * 60
-    )
+    logger.info("=" * 60)
 
     # --------------------------------------------------
     # Dataset Builder
@@ -139,7 +135,7 @@ def train_pipeline():
     trainer = ModelTrainer()
 
     class_weights = trainer.calculate_class_weights(
-    y_train
+        y_train
     )
 
     trainer.train(
@@ -151,6 +147,44 @@ def train_pipeline():
 
     logger.info(
         "Training finished."
+    )
+
+    # --------------------------------------------------
+    # Training Set Sanity Check
+    # --------------------------------------------------
+    #
+    # This diagnostic checks whether the model actually
+    # learned the training data.
+    #
+    # We are intentionally NOT changing the model,
+    # dataset split, or architecture here.
+    # --------------------------------------------------
+
+    logger.info("=" * 60)
+    logger.info(
+        "TRAINING SET SANITY CHECK"
+    )
+    logger.info("=" * 60)
+
+    train_loss, train_accuracy = model.evaluate(
+        train_dataset,
+        verbose=0,
+    )
+
+    print()
+    print("=" * 60)
+    print("TRAINING SET SANITY CHECK")
+    print("=" * 60)
+    print(
+        f"Train loss     : {train_loss:.4f}"
+    )
+    print(
+        f"Train accuracy : {train_accuracy:.4%}"
+    )
+    print("=" * 60)
+
+    logger.info(
+        "Training set sanity check completed."
     )
 
     # --------------------------------------------------
@@ -168,6 +202,12 @@ def train_pipeline():
         "Evaluation finished."
     )
 
+    return (
+        model,
+        X_test,
+        y_test,
+        label_encoder,
+    )
 
 
 # ==========================================================
@@ -181,17 +221,13 @@ def inference_pipeline(
     Run inference on a new audio file.
     """
 
-    logger.info(
-        "=" * 60
-    )
+    logger.info("=" * 60)
 
     logger.info(
         "TRIDENT Inference Pipeline Started"
     )
 
-    logger.info(
-        "=" * 60
-    )
+    logger.info("=" * 60)
 
     predictor = Predictor()
 
@@ -203,9 +239,13 @@ def inference_pipeline(
 
     print("========== PREDICTION ==========")
 
-    print(f"Target      : {prediction}")
+    print(
+        f"Target      : {prediction}"
+    )
 
-    print(f"Confidence  : {confidence:.2%}")
+    print(
+        f"Confidence  : {confidence:.2%}"
+    )
 
     # --------------------------------------------------
     # Threat Analysis
@@ -220,11 +260,19 @@ def inference_pipeline(
 
     print()
 
-    print("========== THREAT ANALYSIS ==========")
+    print(
+        "========== THREAT ANALYSIS =========="
+    )
 
-    print(f"Category            : {result['category']}")
+    print(
+        f"Category            : "
+        f"{result['category']}"
+    )
 
-    print(f"Threat Level        : {result['threat_level']}")
+    print(
+        f"Threat Level        : "
+        f"{result['threat_level']}"
+    )
 
     print(
         f"Recommended Action  : "
@@ -280,6 +328,7 @@ def inference_pipeline(
         f"(shape={heatmap.shape})."
     )
 
+
 # ==========================================================
 # Main
 # ==========================================================
@@ -290,24 +339,18 @@ def main() -> None:
     """
 
     parser = argparse.ArgumentParser(
-
         description=(
             "TRIDENT - Underwater Acoustic "
             "Intelligence Platform"
         )
-
     )
 
     parser.add_argument(
-
         "--predict",
-
         type=Path,
-
         help=(
             "Path to an audio file for inference."
         ),
-
     )
 
     args = parser.parse_args()
@@ -323,9 +366,8 @@ def main() -> None:
             if not args.predict.exists():
 
                 raise FileNotFoundError(
-
-                    f"Audio file not found: {args.predict}"
-
+                    f"Audio file not found: "
+                    f"{args.predict}"
                 )
 
             inference_pipeline(
@@ -365,7 +407,8 @@ def main() -> None:
         print(error)
 
         sys.exit(1)
-    
+
+
 # ==========================================================
 # Entry Point
 # ==========================================================
