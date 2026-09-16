@@ -138,6 +138,10 @@ def train_pipeline():
         y_train
     )
 
+    logger.info(
+        "Class weights calculated."
+    )
+
     trainer.train(
         model=model,
         train_dataset=train_dataset,
@@ -153,34 +157,122 @@ def train_pipeline():
     # Training Set Sanity Check
     # --------------------------------------------------
     #
-    # This diagnostic checks whether the model actually
-    # learned the training data.
+    # This diagnostic deliberately bypasses tf.data
+    # evaluation so that we can inspect the model's
+    # predictions directly against X_train and y_train.
     #
-    # We are intentionally NOT changing the model,
-    # dataset split, or architecture here.
+    # This helps determine whether the model is actually
+    # learning the training data or collapsing to one class.
     # --------------------------------------------------
 
     logger.info("=" * 60)
+
     logger.info(
         "TRAINING SET SANITY CHECK"
     )
+
     logger.info("=" * 60)
 
-    train_loss, train_accuracy = model.evaluate(
-        train_dataset,
+    # Direct NumPy prediction.
+    #
+    # We intentionally use X_train directly instead of
+    # train_dataset so that dataset shuffling does not
+    # affect this diagnostic.
+
+    train_probabilities = model.predict(
+        X_train,
+        batch_size=32,
         verbose=0,
+    )
+
+    train_predictions = np.argmax(
+        train_probabilities,
+        axis=1,
     )
 
     print()
     print("=" * 60)
     print("TRAINING SET SANITY CHECK")
     print("=" * 60)
-    print(
-        f"Train loss     : {train_loss:.4f}"
+
+    # --------------------------------------------------
+    # Actual Training Distribution
+    # --------------------------------------------------
+
+    print()
+    print("Actual training class distribution:")
+
+    actual_classes, actual_counts = np.unique(
+        y_train,
+        return_counts=True,
     )
-    print(
-        f"Train accuracy : {train_accuracy:.4%}"
+
+    for class_id, count in zip(
+        actual_classes,
+        actual_counts,
+    ):
+
+        class_name = next(
+            (
+                name
+                for name, index
+                in label_encoder.items()
+                if index == class_id
+            ),
+            f"class_{class_id}",
+        )
+
+        print(
+            f"  {class_id} ({class_name}): "
+            f"{count}"
+        )
+
+    # --------------------------------------------------
+    # Predicted Training Distribution
+    # --------------------------------------------------
+
+    print()
+    print("Predicted training class distribution:")
+
+    predicted_classes, predicted_counts = np.unique(
+        train_predictions,
+        return_counts=True,
     )
+
+    for class_id, count in zip(
+        predicted_classes,
+        predicted_counts,
+    ):
+
+        class_name = next(
+            (
+                name
+                for name, index
+                in label_encoder.items()
+                if index == class_id
+            ),
+            f"class_{class_id}",
+        )
+
+        print(
+            f"  {class_id} ({class_name}): "
+            f"{count}"
+        )
+
+    # --------------------------------------------------
+    # Direct Training Accuracy
+    # --------------------------------------------------
+
+    train_accuracy = np.mean(
+        train_predictions == y_train
+    )
+
+    print()
+    print(
+        f"Train accuracy : "
+        f"{train_accuracy:.4%}"
+    )
+
     print("=" * 60)
 
     logger.info(
