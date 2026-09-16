@@ -1,6 +1,22 @@
 {
     "num_classes": 4,
-    "train_samples": 45,
-    "validation_samples": 9,
-    "test_samples": 9
+    "classes": [
+        "cargo_ship",
+        "passenger_ship",
+        "tanker",
+        "tug"
+    ],
+    "segment_duration_seconds": 3.0,
+    "input_shape": [
+        128,
+        128,
+        1
+    ],
+    "train_recordings": 45,
+    "validation_recordings": 9,
+    "test_recordings": 9,
+    "train_segments": 1351,
+    "validation_segments": 257,
+    "test_segments": 281,
+    "segment_split_strategy": "recording_level_before_segmentation"
 }
