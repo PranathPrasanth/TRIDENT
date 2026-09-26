@@ -13,13 +13,16 @@ import torch.nn.functional as F
 from src.inference.model_loader import Marine1ModelLoader
 from src.preprocessing.audio_loader import AudioLoader
 from src.preprocessing.audio_cleaner import AudioCleaner
-from src.feature_extraction.mel_spectrogram import MelSpectrogramExtractor
+from src.feature_extraction.mel_spectrogram import (
+    MelSpectrogramExtractor,
+)
 from src.utils.logger import logger
 
 
 class Predictor:
     """
-    Performs underwater acoustic classification using Marine1.
+    Performs underwater acoustic classification
+    using the pretrained Marine1 model.
     """
 
     TARGET_SAMPLE_RATE = 16000
@@ -37,19 +40,33 @@ class Predictor:
         ),
     ) -> None:
 
-        logger.info("Initializing Marine1 predictor...")
+        logger.info(
+            "Initializing Marine1 predictor..."
+        )
+
+        # -----------------------------------------------------
+        # Model
+        # -----------------------------------------------------
 
         self.model_loader = Marine1ModelLoader(
             model_path=model_path
         )
 
-        self.model = self.model_loader.get_model()
+        self.model = (
+            self.model_loader.get_model()
+        )
 
         self.class_names = (
             self.model_loader.get_classes()
         )
 
-        self.device = torch.device("cpu")
+        self.device = (
+            self.model_loader.get_device()
+        )
+
+        # -----------------------------------------------------
+        # Audio preprocessing
+        # -----------------------------------------------------
 
         self.loader = AudioLoader(
             sample_rate=self.TARGET_SAMPLE_RATE,
@@ -58,20 +75,22 @@ class Predictor:
 
         self.cleaner = AudioCleaner()
 
-        self.extractor = MelSpectrogramExtractor(
-            sample_rate=self.TARGET_SAMPLE_RATE,
-            n_fft=2048,
-            hop_length=512,
-            n_mels=128,
+        self.extractor = (
+            MelSpectrogramExtractor(
+                sample_rate=self.TARGET_SAMPLE_RATE,
+                n_fft=2048,
+                hop_length=512,
+                n_mels=128,
+            )
         )
 
         logger.info(
             "Marine1 predictor ready."
         )
 
-    # ---------------------------------------------------------
-    # Prepare Waveform
-    # ---------------------------------------------------------
+    # =========================================================
+    # Waveform Preparation
+    # =========================================================
 
     def prepare_waveform(
         self,
@@ -113,9 +132,9 @@ class Predictor:
             np.float32
         )
 
-    # ---------------------------------------------------------
-    # Prepare Mel Spectrogram
-    # ---------------------------------------------------------
+    # =========================================================
+    # Audio Preparation
+    # =========================================================
 
     def prepare_audio(
         self,
@@ -126,37 +145,45 @@ class Predictor:
         into the tensor expected by Marine1.
         """
 
+        # Load at 16 kHz mono.
         waveform, sample_rate = (
             self.loader.load_audio(
                 audio_path
             )
         )
 
+        # Existing TRIDENT cleaning stage.
         waveform = self.cleaner.clean(
             waveform
         )
 
+        # Marine1 expects 10 seconds.
         waveform = self.prepare_waveform(
             waveform
         )
 
+        # Generate log-Mel spectrogram.
+        #
+        # MelSpectrogramExtractor already performs:
+        #
+        # power_to_db(mel, ref=np.max)
+        #
+        # which matches Marine1 preprocessing.
         mel = self.extractor.extract(
             waveform
         )
 
-        # Marine1 expects a single-channel
-        # log-Mel spectrogram.
         mel = np.asarray(
             mel,
             dtype=np.float32,
         )
 
+        # [128, time]
+        #      ↓
+        # [1, 1, 128, time]
         model_input = torch.from_numpy(
             mel
-        )
-
-        # [128, time] -> [1, 1, 128, time]
-        model_input = model_input.unsqueeze(
+        ).unsqueeze(
             0
         ).unsqueeze(
             0
@@ -171,9 +198,9 @@ class Predictor:
             sample_rate,
         )
 
-    # ---------------------------------------------------------
-    # Predict
-    # ---------------------------------------------------------
+    # =========================================================
+    # Prediction
+    # =========================================================
 
     def predict(
         self,
@@ -181,6 +208,11 @@ class Predictor:
     ) -> tuple[str, float]:
         """
         Predict the acoustic source category.
+
+        Returns
+        -------
+        tuple[str, float]
+            Predicted class and confidence.
         """
 
         model_input, _ = (
@@ -231,9 +263,9 @@ class Predictor:
             confidence,
         )
 
-    # ---------------------------------------------------------
+    # =========================================================
     # Detailed Prediction
-    # ---------------------------------------------------------
+    # =========================================================
 
     def predict_with_details(
         self,
@@ -312,9 +344,9 @@ class Predictor:
         }
 
 
-# -------------------------------------------------------------
-# Testing
-# -------------------------------------------------------------
+# =============================================================
+# Direct Testing
+# =============================================================
 
 if __name__ == "__main__":
 
