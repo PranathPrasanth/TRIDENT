@@ -1,133 +1,129 @@
 """
 TRIDENT Predictor
 
-Performs inference using a trained CNN model.
+Performs inference using the pretrained Marine1 model.
 """
 
-import json
 from pathlib import Path
 
 import numpy as np
-import tensorflow as tf
+import torch
+import torch.nn.functional as F
 
+from src.inference.model_loader import Marine1ModelLoader
 from src.preprocessing.audio_loader import AudioLoader
 from src.preprocessing.audio_cleaner import AudioCleaner
 from src.feature_extraction.mel_spectrogram import MelSpectrogramExtractor
-from src.feature_extraction.normalizer import FeatureNormalizer
-
-from src.utils.config import (
-    MODEL_DIR,
-    METADATA_DIR,
-)
 from src.utils.logger import logger
 
 
 class Predictor:
     """
-    Performs prediction on new audio recordings.
+    Performs underwater acoustic classification using Marine1.
     """
+
+    TARGET_SAMPLE_RATE = 16000
+    TARGET_DURATION = 10
+    TARGET_SAMPLES = (
+        TARGET_SAMPLE_RATE * TARGET_DURATION
+    )
 
     def __init__(
         self,
-        model_path: str | Path = Path(MODEL_DIR) / "best_model.keras",
+        model_path: str | Path = (
+            Path("models")
+            / "marine1"
+            / "best_model_finetuned.safetensors"
+        ),
     ) -> None:
 
-        logger.info("Loading trained model...")
+        logger.info("Initializing Marine1 predictor...")
 
-        self.model = tf.keras.models.load_model(
-            model_path
+        self.model_loader = Marine1ModelLoader(
+            model_path=model_path
         )
 
-        self.loader = AudioLoader()
+        self.model = self.model_loader.get_model()
+
+        self.class_names = (
+            self.model_loader.get_classes()
+        )
+
+        self.device = torch.device("cpu")
+
+        self.loader = AudioLoader(
+            sample_rate=self.TARGET_SAMPLE_RATE,
+            mono=True,
+        )
 
         self.cleaner = AudioCleaner()
 
-        self.extractor = MelSpectrogramExtractor()
+        self.extractor = MelSpectrogramExtractor(
+            sample_rate=self.TARGET_SAMPLE_RATE,
+            n_fft=2048,
+            hop_length=512,
+            n_mels=128,
+        )
 
-        self.normalizer = FeatureNormalizer()
-
-        with open(
-            METADATA_DIR / "class_mapping.json",
-            "r",
-            encoding="utf-8",
-        ) as file:
-
-            self.class_mapping = json.load(file)
-
-        logger.info("Predictor ready.")
+        logger.info(
+            "Marine1 predictor ready."
+        )
 
     # ---------------------------------------------------------
-    # Resize Mel Spectrogram
+    # Prepare Waveform
     # ---------------------------------------------------------
 
-    def resize_mel(
+    def prepare_waveform(
         self,
-        mel: np.ndarray,
-        target_height: int = 128,
-        target_width: int = 128,
+        waveform: np.ndarray,
     ) -> np.ndarray:
         """
-        Convert a Mel spectrogram into the same fixed size
-        used during model training.
+        Convert an arbitrary-length waveform into
+        the 10-second input expected by Marine1.
+
+        Longer recordings are truncated.
+        Shorter recordings are zero-padded.
         """
 
-        height, width = mel.shape
+        waveform = np.asarray(
+            waveform,
+            dtype=np.float32,
+        )
 
-        if height > target_height:
+        if len(waveform) > self.TARGET_SAMPLES:
 
-            mel = mel[
-                :target_height,
-                :
+            waveform = waveform[
+                :self.TARGET_SAMPLES
             ]
 
-        elif height < target_height:
+        elif len(waveform) < self.TARGET_SAMPLES:
 
-            padding = target_height - height
+            padding = (
+                self.TARGET_SAMPLES
+                - len(waveform)
+            )
 
-            mel = np.pad(
-                mel,
-                (
-                    (0, padding),
-                    (0, 0),
-                ),
+            waveform = np.pad(
+                waveform,
+                (0, padding),
                 mode="constant",
             )
 
-        if width > target_width:
-
-            mel = mel[
-                :,
-                :target_width,
-            ]
-
-        elif width < target_width:
-
-            padding = target_width - width
-
-            mel = np.pad(
-                mel,
-                (
-                    (0, 0),
-                    (0, padding),
-                ),
-                mode="constant",
-            )
-
-        return mel.astype(
+        return waveform.astype(
             np.float32
         )
 
     # ---------------------------------------------------------
-    # Prepare Audio
+    # Prepare Mel Spectrogram
     # ---------------------------------------------------------
 
     def prepare_audio(
         self,
         audio_path: str | Path,
-    ) -> tuple[np.ndarray, int]:
+    ) -> tuple[torch.Tensor, int]:
         """
-        Load and preprocess an audio file into the exact
-        tensor representation expected by the CNN.
+        Load and preprocess an audio recording
+        into the tensor expected by Marine1.
         """
 
         waveform, sample_rate = (
@@ -140,30 +136,34 @@ class Predictor:
             waveform
         )
 
+        waveform = self.prepare_waveform(
+            waveform
+        )
+
         mel = self.extractor.extract(
             waveform
         )
 
-        # IMPORTANT:
-        # Same normalization used during training.
-        mel = self.normalizer.normalize(
+        # Marine1 expects a single-channel
+        # log-Mel spectrogram.
+        mel = np.asarray(
+            mel,
+            dtype=np.float32,
+        )
+
+        model_input = torch.from_numpy(
             mel
         )
 
-        # IMPORTANT:
-        # Same fixed dimensions used during training.
-        mel = self.resize_mel(
-            mel
+        # [128, time] -> [1, 1, 128, time]
+        model_input = model_input.unsqueeze(
+            0
+        ).unsqueeze(
+            0
         )
 
-        mel = np.expand_dims(
-            mel,
-            axis=-1,
-        )
-
-        model_input = np.expand_dims(
-            mel,
-            axis=0,
+        model_input = model_input.to(
+            self.device
         )
 
         return (
@@ -180,7 +180,7 @@ class Predictor:
         audio_path: str | Path,
     ) -> tuple[str, float]:
         """
-        Predict the class of an audio recording.
+        Predict the acoustic source category.
         """
 
         model_input, _ = (
@@ -189,25 +189,41 @@ class Predictor:
             )
         )
 
-        prediction = self.model.predict(
-            model_input,
-            verbose=0,
-        )
+        with torch.no_grad():
+
+            logits = self.model(
+                model_input
+            )
+
+            probabilities = F.softmax(
+                logits,
+                dim=1,
+            )
 
         class_index = int(
-            np.argmax(prediction)
+            torch.argmax(
+                probabilities,
+                dim=1,
+            ).item()
         )
 
         confidence = float(
-            prediction[0][class_index]
+            probabilities[
+                0,
+                class_index,
+            ].item()
         )
 
-        predicted_class = self.class_mapping[
-            str(class_index)
-        ]
+        predicted_class = (
+            self.class_names[
+                class_index
+            ]
+        )
 
         logger.info(
-            "Prediction completed."
+            f"Prediction completed: "
+            f"{predicted_class} "
+            f"({confidence:.2%})"
         )
 
         return (
@@ -224,8 +240,8 @@ class Predictor:
         audio_path: str | Path,
     ) -> dict:
         """
-        Run inference and return information required
-        by the TRIDENT API.
+        Run inference and return detailed
+        information required by the TRIDENT API.
         """
 
         model_input, sample_rate = (
@@ -234,33 +250,54 @@ class Predictor:
             )
         )
 
-        prediction = self.model.predict(
-            model_input,
-            verbose=0,
-        )
+        with torch.no_grad():
+
+            logits = self.model(
+                model_input
+            )
+
+            probabilities_tensor = (
+                F.softmax(
+                    logits,
+                    dim=1,
+                )
+            )
 
         class_index = int(
-            np.argmax(prediction)
+            torch.argmax(
+                probabilities_tensor,
+                dim=1,
+            ).item()
         )
 
         confidence = float(
-            prediction[0][class_index]
+            probabilities_tensor[
+                0,
+                class_index,
+            ].item()
         )
 
-        predicted_class = self.class_mapping[
-            str(class_index)
-        ]
+        predicted_class = (
+            self.class_names[
+                class_index
+            ]
+        )
 
         probabilities = {
-            self.class_mapping[str(index)]: float(
-                probability
+            class_name: float(
+                probabilities_tensor[
+                    0,
+                    index,
+                ].item()
             )
-            for index, probability
-            in enumerate(prediction[0])
+            for index, class_name
+            in enumerate(
+                self.class_names
+            )
         }
 
         logger.info(
-            "Detailed prediction completed."
+            "Detailed Marine1 prediction completed."
         )
 
         return {
@@ -283,20 +320,19 @@ if __name__ == "__main__":
 
     predictor = Predictor()
 
-    prediction, confidence = predictor.predict(
-        "data/raw/example.wav"
+    prediction, confidence = (
+        predictor.predict(
+            "data/raw/example.wav"
+        )
     )
 
     print()
-
     print(
-        "========== PREDICTION =========="
+        "========== MARINE1 PREDICTION =========="
     )
-
     print(
         f"Target      : {prediction}"
     )
-
     print(
         f"Confidence  : {confidence:.2%}"
     )
